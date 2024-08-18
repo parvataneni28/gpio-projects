@@ -1,47 +1,56 @@
-from gpiozero import OutputDevice
-import time
+import RPi.GPIO as GPIO
+from time import sleep
 
-# Define the GPIO pins connected to IN1, IN2, IN3, IN4
-IN1 = OutputDevice(17)
-IN2 = OutputDevice(18)
-IN3 = OutputDevice(27)
-IN4 = OutputDevice(22)
+# Direction pin from controller
+DIR = 10
+# Step pin from controller
+STEP = 8
+# 0/1 used to signify clockwise or counterclockwise.
+CW = 1
+CCW = 0
 
-# Step sequence for half-stepping
-step_sequence = [
-    [1, 0, 0, 0],
-    [1, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 1, 0],
-    [0, 0, 1, 0],
-    [0, 0, 1, 1],
-    [0, 0, 0, 1],
-    [1, 0, 0, 1]
-]
+# Setup pin layout on PI
+GPIO.setmode(GPIO.BOARD)
 
-# Function to set the GPIO pins according to the step sequence
-def set_step(w1, w2, w3, w4):
-    IN1.value = w1
-    IN2.value = w2
-    IN3.value = w3
-    IN4.value = w4
+# Establish Pins in software
+GPIO.setup(DIR, GPIO.OUT)
+GPIO.setup(STEP, GPIO.OUT)
 
-# Function to rotate stepper motor by specified steps
-def rotate_motor(steps, direction=1, delay=0.001):
-    for _ in range(steps):
-        for step in (step_sequence if direction == 1 else reversed(step_sequence)):
-            set_step(*step)
-            time.sleep(delay)
+# Set the first direction you want it to spin
+GPIO.output(DIR, CW)
 
 try:
-    while True:
-        print("Rotating Forward")
-        rotate_motor(512, direction=1)  # One full rotation forward
-        time.sleep(1)
+	# Run forever.
+	while True:
 
-        print("Rotating Backward")
-        rotate_motor(512, direction=-1)  # One full rotation backward
-        time.sleep(1)
+		"""Change Direction: Changing direction requires time to switch. The
+		time is dictated by the stepper motor and controller. """
+		sleep(1.0)
+		# Esablish the direction you want to go
+		GPIO.output(DIR,CW)
 
+		# Run for 200 steps. This will change based on how you set you controller
+		for x in range(200):
+
+			# Set one coil winding to high
+			GPIO.output(STEP,GPIO.HIGH)
+			# Allow it to get there.
+			sleep(.005) # Dictates how fast stepper motor will run
+			# Set coil winding to low
+			GPIO.output(STEP,GPIO.LOW)
+			sleep(.005) # Dictates how fast stepper motor will run
+
+		"""Change Direction: Changing direction requires time to switch. The
+		time is dictated by the stepper motor and controller. """
+		sleep(1.0)
+		GPIO.output(DIR,CCW)
+		for x in range(200):
+			GPIO.output(STEP,GPIO.HIGH)
+			sleep(.005)
+			GPIO.output(STEP,GPIO.LOW)
+			sleep(.005)
+
+# Once finished clean everything up
 except KeyboardInterrupt:
-    print("Motor stopped.")
+	print("cleanup")
+	GPIO.cleanup()
