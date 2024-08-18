@@ -5,7 +5,7 @@ import time
 chip = gpiod.Chip('gpiochip0')  # Use gpiochip0, adjust if needed
 
 # Define the GPIO lines (adjust based on your wiring)
-pins = [14, 15, 18, 23]  # Example GPIO pins connected to IN1, IN2, IN3, IN4
+pins = [17, 18, 27, 22]  # Example GPIO pins connected to IN1, IN2, IN3, IN4
 
 # Request access to GPIO lines
 lines = chip.get_lines(pins)
