@@ -1,64 +1,42 @@
-import RPi.GPIO as GPIO
+import gpiod
 import time
-GPIO.setmode(GPIO.BOARD)
-control_pins = [8,10,12,16]
-for pin in control_pins:
-  GPIO.setup(pin, GPIO.OUT)
-  GPIO.output(pin, 0)
-halfstep_seq = [
-  [1,0,0,0],
-  [1,1,0,0],
-  [0,1,0,0],
-  [0,1,1,0],
-  [0,0,1,0],
-  [0,0,1,1],
-  [0,0,0,1],
-  [1,0,0,1]
+
+# Define the GPIO chip and the GPIO pins connected to the stepper motor
+chip = gpiod.Chip('gpiochip0')  # Use gpiochip0, adjust if needed
+
+# Define the GPIO lines (adjust based on your wiring)
+pins = [14, 15, 18, 23]  # Example GPIO pins connected to IN1, IN2, IN3, IN4
+
+# Request access to GPIO lines
+lines = chip.get_lines(pins)
+lines.request(consumer='stepper', type=gpiod.LINE_REQ_DIR_OUT)
+
+# Define the sequence for the 28BYJ-48 stepper motor
+step_sequence = [
+    [1, 0, 0, 0],
+    [1, 1, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 1, 0],
+    [0, 0, 1, 0],
+    [0, 0, 1, 1],
+    [0, 0, 0, 1],
+    [1, 0, 0, 1],
 ]
-for i in range(512):
-  for halfstep in range(8):
-    for pin in range(4):
-      GPIO.output(control_pins[pin], halfstep_seq[halfstep][pin])
-    time.sleep(0.001)
-GPIO.cleanup()
 
-# from gpiozero import OutputDevice
-# from time import sleep
+def set_pins(sequence):
+    values = [int(x) for x in sequence]
+    lines.set_values(values)
 
-# # Pin Definitions
-# IN1 = OutputDevice(14)
-# IN2 = OutputDevice(15)
-# IN3 = OutputDevice(18)
-# IN4 = OutputDevice(23)
+def rotate_stepper(steps, delay):
+    for _ in range(steps):
+        for step in step_sequence:
+            set_pins(step)
+            time.sleep(delay)
 
-# # Define step sequence for the motor
-# step_sequence = [
-#     [1, 0, 0, 0],
-#     [1, 1, 0, 0],
-#     [0, 1, 0, 0],
-#     [0, 1, 1, 0],
-#     [0, 0, 1, 0],
-#     [0, 0, 1, 1],
-#     [0, 0, 0, 1],
-#     [1, 0, 0, 1]
-# ]
-
-# def set_step(w1, w2, w3, w4):
-#     IN1.value = w1
-#     IN2.value = w2
-#     IN3.value = w3
-#     IN4.value = w4
-
-# def step_motor(steps, direction=1, delay=0.01):
-#     for _ in range(steps):
-#         for step in (step_sequence if direction > 0 else reversed(step_sequence)):
-#             set_step(*step)
-#             sleep(delay)
-
-# try:
-#     while True:
-#         steps = int(input("Enter number of steps (e.g., 2048 for one full revolution): "))
-#         direction = int(input("Enter direction (1 for forward, -1 for backward): "))
-#         step_motor(steps, direction)
-# except KeyboardInterrupt:
-#     print("Program stopped by user")
+# Example usage: rotate the motor 512 steps (one revolution for 28BYJ-48), with a delay of 0.01s
+try:
+    rotate_stepper(512, 0.01)
+finally:
+    # Turn off all pins after the movement
+    set_pins([0, 0, 0, 0])
+    print("Stepper motor movement completed.")
