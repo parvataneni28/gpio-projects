@@ -1,4 +1,5 @@
 #include <Servo.h>
+#include <NewPing.h>  
 
 // Motor control pins for two motors
 const int input1 = 7;   // Motor 1 (right) forward
@@ -6,7 +7,7 @@ const int input2 = 10;  // Motor 1 (right) backward
 const int input3 = 6;   // Motor 2 (left) forward
 const int input4 = 5;   // Motor 2 (left) backward
 
-Servo servo1;
+Servo servo1;           // Servo to scan left and right
 int servoPin = 3;
 int servoPos = 0;
 int servoTargetPos = 179;  // Start by moving to 179°
@@ -15,12 +16,13 @@ unsigned long servoMillis;
 unsigned long currentMillis;
 
 // Ultrasonic sensor pins
-const int trigPin = 8;     // Trig pin connected to digital pin 8
-const int echoPin = 9;     // Echo pin connected to digital pin 9
+const int trigPin = 8;  // Trig pin connected to digital pin 8
+const int echoPin = 9;  // Echo pin connected to digital pin 9
 
-long duration;
 int distance;
 int distanceThreshold = 30;  // Minimum distance to detect an obstacle (in cm)
+
+NewPing radar(trigPin, echoPin, 100);  // Ultrasonic sensor setup
 
 // Movement flags and speed
 boolean goesForward = false;
@@ -42,10 +44,7 @@ void setup() {
 
   // Attach the servo to pin 3
   servo1.attach(servoPin);
-
-  // Set trigPin as OUTPUT and echoPin as INPUT
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+  servo1.write(85);  // Reset servo to center
 
   // Set motor control pins as OUTPUT
   pinMode(input1, OUTPUT);
@@ -54,17 +53,11 @@ void setup() {
   pinMode(input4, OUTPUT);
 
   delay(2000);  // Let everything initialize
-
-  // Start by moving the vehicle forward
-  moveForward();
 }
 
 void loop() {
   int distanceR = 0;
   int distanceL = 0;
-
-  // Get the current time
-  currentMillis = millis();
 
   // Measure the distance using the ultrasonic sensor
   distance = getDistance();
@@ -94,6 +87,11 @@ void loop() {
     distanceL = lookLeft();
     delay(500);
 
+    Serial.print("Distance Right: ");
+    Serial.println(distanceR);
+    Serial.print("Distance Left: ");
+    Serial.println(distanceL);
+
     // Decide which direction to turn based on the distances
     if (distanceR > distanceL) {
       Serial.println("More space on the right. Turning right...");
@@ -107,7 +105,7 @@ void loop() {
     }
 
     // After turning, move forward in the new direction
-    moveForward();
+    // moveForward();
   } else {
     // No obstacle, keep moving forward
     moveForward();
@@ -118,47 +116,40 @@ void loop() {
 
 // Look to the right
 int lookRight() {
-  servo1.write(50);  // Turn servo to the right
+  servo1.write(30);  // Turn servo to the right
   delay(500);        // Wait for the servo to settle
   int distance = getDistance();
   delay(100);
-  servo1.write(115);  // Reset servo to center
+  servo1.write(85);  // Reset servo to center
   return distance;
 }
 
 // Look to the left
 int lookLeft() {
-  servo1.write(170);  // Turn servo to the left
+  servo1.write(130);  // Turn servo to the left
   delay(500);         // Wait for the servo to settle
   int distance = getDistance();
   delay(100);
-  servo1.write(115);  // Reset servo to center
+  servo1.write(85);  // Reset servo to center
   return distance;
 }
 
-// Function to measure distance using the HC-SR04
+// Function to measure distance using the NewPing library
 int getDistance() {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  duration = pulseIn(echoPin, HIGH);
-  int distance = duration * 0.034 / 2;
-  return distance;
+  int cm = radar.ping_cm();
+  if (cm == 0) {
+    cm = 250;  // If no obstacle detected, set a high distance
+  }
+  return cm;
 }
 
 // Move the vehicle forward (both motors forward)
 void moveForward() {
-  if (!goesForward) {
-    goesForward = true;
-    digitalWrite(input1, LOW);  // Right motor forward
-    digitalWrite(input2, HIGH);  // Right motor stop backward
-    digitalWrite(input3, LOW);  // Left motor forward
-    digitalWrite(input4, HIGH);  // Left motor stop backward
-  }
+  goesForward = true;
+  digitalWrite(input1, LOW);   // Right motor forward
+  digitalWrite(input2, HIGH);  // Right motor stop backward
+  digitalWrite(input3, LOW);   // Left motor forward
+  digitalWrite(input4, HIGH);  // Left motor stop backward
   Serial.println("Moving Forward");
 }
 
@@ -183,20 +174,20 @@ void stopVehicle() {
 
 // Turn the vehicle left (right motor forward, left motor backward)
 void turnLeft() {
-  digitalWrite(input1, LOW);  // Right motor forward
-  digitalWrite(input2, HIGH); // Right motor stop backward
-  digitalWrite(input3, HIGH); // Left motor backward
-  digitalWrite(input4, LOW);  // Left motor stop forward
-  delay(500);  // Turn for 500ms
+  digitalWrite(input1, LOW);   // Right motor forward
+  digitalWrite(input2, HIGH);  // Right motor stop backward
+  digitalWrite(input3, HIGH);  // Left motor backward
+  digitalWrite(input4, LOW);   // Left motor stop forward
+  delay(500);                  // Turn for 500ms
   Serial.println("Turning Left");
 }
 
 // Turn the vehicle right (left motor forward, right motor backward)
 void turnRight() {
-  digitalWrite(input1, HIGH); // Right motor backward
-  digitalWrite(input2, LOW);  // Right motor stop forward
-  digitalWrite(input3, LOW);  // Left motor forward
-  digitalWrite(input4, HIGH); // Left motor stop backward
-  delay(500);  // Turn for 500ms
+  digitalWrite(input1, HIGH);  // Right motor backward
+  digitalWrite(input2, LOW);   // Right motor stop forward
+  digitalWrite(input3, LOW);   // Left motor forward
+  digitalWrite(input4, HIGH);  // Left motor stop backward
+  delay(500);                  // Turn for 500ms
   Serial.println("Turning Right");
 }
